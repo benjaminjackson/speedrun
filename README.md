@@ -1,38 +1,125 @@
-# Ffwd
+# ffwd
 
-TODO: Delete this and the text below, and describe your gem
+Automatically detect and remove freeze/low-motion regions from videos using ffmpeg.
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/ffwd`. To experiment with that code, run `bin/console` for an interactive prompt.
+## Description
+
+`ffwd` analyzes videos for frozen or low-motion segments (using ffmpeg's `freezedetect` filter) and removes them, stitching together only the active parts. Perfect for cleaning up screen recordings, presentation videos, or any footage with long static periods.
 
 ## Installation
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
-
-Install the gem and add to the application's Gemfile by executing:
+Install the gem:
 
 ```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+gem install ffwd
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+Or add to your Gemfile:
+
+```ruby
+gem 'ffwd'
+```
+
+### Requirements
+
+- Ruby >= 3.2.0
+- ffmpeg (with freezedetect filter support)
+- ffprobe
+
+Install ffmpeg via your package manager:
 
 ```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+# macOS
+brew install ffmpeg
+
+# Ubuntu/Debian
+apt-get install ffmpeg
+
+# Arch Linux
+pacman -S ffmpeg
 ```
 
 ## Usage
 
-TODO: Write usage instructions here
+Basic usage:
+
+```bash
+ffwd trim input.mp4
+```
+
+This creates `input-trimmed.mp4` with frozen segments removed.
+
+### Options
+
+```bash
+ffwd trim INPUT [OUTPUT] [options]
+
+Options:
+  -n, --noise THRESHOLD        # Noise threshold in dB (default: -70)
+  -d, --duration SECONDS       # Minimum freeze duration in seconds (default: 1.0)
+  --dry-run                    # Preview without processing
+  -q, --quiet                  # Minimal output
+
+Examples:
+  ffwd trim video.mp4                                    # Creates video-trimmed.mp4
+  ffwd trim video.mp4 output.mp4                         # Custom output name
+  ffwd trim video.mp4 --noise -60                        # More sensitive detection
+  ffwd trim video.mp4 --duration 2.0                     # Only remove freezes >= 2s
+  ffwd trim video.mp4 --dry-run                          # Preview analysis only
+```
+
+### Other Commands
+
+```bash
+ffwd version                   # Show version
+ffwd help                      # Show help
+```
+
+## How It Works
+
+1. **Detect:** Uses ffmpeg's `freezedetect` filter to find frozen/low-motion segments
+2. **Analyze:** Calculates which portions to keep vs. remove
+3. **Extract:** Extracts active segments using ffmpeg
+4. **Stitch:** Concatenates segments into final output
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+After checking out the repo:
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+```bash
+bin/setup                      # Install dependencies
+bundle exec rake test          # Run test suite
+bundle exec guard              # Auto-run tests on file changes
+```
+
+### Testing
+
+The codebase follows strict TDD with 100% test coverage. All ffmpeg calls are mocked for fast, isolated testing.
+
+```bash
+bundle exec rake test          # Run full test suite
+```
+
+### Test Structure
+
+- **Unit tests:** All components tested in isolation with mocks
+- **Integration tests:** Full workflow with mocked FFmpeg
+- **Fixtures:** Sample ffmpeg/ffprobe outputs for realistic testing
+
+## Architecture
+
+```
+lib/ffwd/
+├── version.rb        # Version constant
+├── formatter.rb      # Time/duration/filesize formatters
+├── ffmpeg.rb         # FFmpeg command wrappers & parsers
+├── trimmer.rb        # Core video processing logic
+└── cli.rb            # Thor-based CLI interface
+```
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/ffwd.
+Bug reports and pull requests are welcome on GitHub at https://github.com/benjaminjackson/ffwd.
 
 ## License
 
