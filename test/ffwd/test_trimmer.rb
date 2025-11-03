@@ -153,5 +153,59 @@ module Ffwd
         end
       end
     end
+
+    def test_run_processes_video_when_not_dry_run
+      File.stub :exist?, true do
+        File.stub :size, 1024000 do
+          FFmpeg.stub :get_duration, 100.0 do
+            FFmpeg.stub :detect_freezes, [[40.0, 60.0]] do
+              FFmpeg.stub :extract_and_concat, true do
+                trimmer = Trimmer.new("input.mp4", "output.mp4")
+
+                output = capture_io { trimmer.run }.join
+
+                assert_match(/Processing video/, output)
+                assert_match(/Complete!/, output)
+                assert_match(/output.mp4/, output)
+                assert_match(/File size:/, output)
+              end
+            end
+          end
+        end
+      end
+    end
+
+    def test_run_calls_extract_and_concat_with_correct_parameters
+      keep_regions = [[0.0, 40.0], [60.0, 100.0]]
+
+      File.stub :exist?, true do
+        File.stub :size, 1024000 do
+          FFmpeg.stub :get_duration, 100.0 do
+            FFmpeg.stub :detect_freezes, [[40.0, 60.0]] do
+              extract_called = false
+              extract_input = nil
+              extract_output = nil
+              extract_regions = nil
+
+              FFmpeg.stub :extract_and_concat, ->(input, output, regions) {
+                extract_called = true
+                extract_input = input
+                extract_output = output
+                extract_regions = regions
+                true
+              } do
+                trimmer = Trimmer.new("input.mp4", "output.mp4")
+                capture_io { trimmer.run }
+
+                assert extract_called, "extract_and_concat should be called"
+                assert_equal "input.mp4", extract_input
+                assert_equal "output.mp4", extract_output
+                assert_equal keep_regions, extract_regions
+              end
+            end
+          end
+        end
+      end
+    end
   end
 end

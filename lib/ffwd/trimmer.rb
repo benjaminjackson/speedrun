@@ -55,9 +55,13 @@ module Ffwd
         puts
         puts "DRY RUN - No files were modified"
       else
-        # TODO: Extract and concatenate segments
         puts
-        puts "Processing not yet implemented"
+        puts "Processing video..."
+        FFmpeg.extract_and_concat(@input_file, @output_file, keep_regions)
+
+        output_size = File.size(@output_file)
+        puts "Complete! Output saved to #{@output_file}"
+        puts "  File size: #{Formatter.format_filesize(output_size)}"
       end
     end
 

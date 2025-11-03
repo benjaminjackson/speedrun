@@ -73,5 +73,19 @@ module Ffwd
         FFmpeg.detect_freezes("nonexistent.mp4")
       end
     end
+
+    def test_extract_and_concat_raises_error_if_input_file_not_found
+      assert_raises(ArgumentError) do
+        FFmpeg.extract_and_concat("nonexistent.mp4", "output.mp4", [[0.0, 10.0]])
+      end
+    end
+
+    def test_extract_and_concat_raises_error_if_no_regions_to_keep
+      File.stub :exist?, true do
+        assert_raises(ArgumentError) do
+          FFmpeg.extract_and_concat("test.mp4", "output.mp4", [])
+        end
+      end
+    end
   end
 end

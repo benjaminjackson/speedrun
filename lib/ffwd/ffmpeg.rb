@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'shellwords'
+require 'tempfile'
 
 module Ffwd
   module FFmpeg
@@ -56,6 +57,39 @@ module Ffwd
 
       output = `#{cmd} 2>&1`
       parse_freezes(output)
+    end
+
+    def self.extract_and_concat(input_file, output_file, keep_regions)
+      raise ArgumentError, "File not found: #{input_file}" unless File.exist?(input_file)
+      raise ArgumentError, "No regions to keep" if keep_regions.empty?
+
+      abs_input = File.absolute_path(input_file)
+
+      Tempfile.create(['concat', '.txt']) do |concat_file|
+        keep_regions.each do |start_time, end_time|
+          concat_file.puts "file '#{abs_input}'"
+          concat_file.puts "inpoint #{start_time}"
+          concat_file.puts "outpoint #{end_time}"
+        end
+        concat_file.flush
+
+        cmd = [
+          'ffmpeg',
+          '-f', 'concat',
+          '-safe', '0',
+          '-i', concat_file.path,
+          '-c', 'copy',
+          '-y',
+          output_file
+        ].shelljoin
+
+        output = `#{cmd} 2>&1`
+        success = $?.success?
+
+        raise "FFmpeg failed: #{output}" unless success
+
+        success
+      end
     end
   end
 end
