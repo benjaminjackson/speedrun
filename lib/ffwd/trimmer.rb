@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
+require 'fileutils'
+
 module Ffwd
   class Trimmer
     attr_reader :input_file, :output_file
+    attr_accessor :dry_run
 
     def initialize(input_file, output_file = nil, noise_threshold: -70, min_duration: 1.0)
       raise ArgumentError, "File not found: #{input_file}" unless File.exist?(input_file)
@@ -11,6 +14,51 @@ module Ffwd
       @output_file = output_file || generate_output_filename(input_file)
       @noise_threshold = noise_threshold
       @min_duration = min_duration
+      @dry_run = false
+    end
+
+    def dry_run?
+      @dry_run
+    end
+
+    def run
+      puts "Input:  #{@input_file}"
+      puts "Output: #{@output_file}"
+      puts
+
+      # Step 1: Detect freeze regions
+      freeze_regions = FFmpeg.detect_freezes(
+        @input_file,
+        noise_threshold: @noise_threshold,
+        min_duration: @min_duration
+      )
+
+      if freeze_regions.empty?
+        puts "No freeze regions detected. Copying original video..."
+        FileUtils.cp(@input_file, @output_file) unless dry_run?
+        return
+      end
+
+      # Step 2: Calculate keep regions
+      video_duration = FFmpeg.get_duration(@input_file)
+      keep_regions = calculate_keep_regions(freeze_regions, video_duration)
+
+      if keep_regions.empty?
+        raise "All video content would be removed!"
+      end
+
+      # Step 3: Print summary
+      print_summary(freeze_regions, keep_regions, video_duration)
+
+      # Step 4: Process or dry-run
+      if dry_run?
+        puts
+        puts "DRY RUN - No files were modified"
+      else
+        # TODO: Extract and concatenate segments
+        puts
+        puts "Processing not yet implemented"
+      end
     end
 
     private
@@ -40,6 +88,20 @@ module Ffwd
       keep_regions << [current_time, video_duration] if current_time < video_duration
 
       keep_regions
+    end
+
+    def print_summary(freeze_regions, keep_regions, video_duration)
+      total_removed = freeze_regions.sum { |s, e| e - s }
+      total_kept = keep_regions.sum { |s, e| e - s }
+
+      puts "Analysis complete:"
+      puts "  Found #{freeze_regions.length} freeze region#{freeze_regions.length == 1 ? '' : 's'}"
+      puts "  Keeping #{keep_regions.length} segment#{keep_regions.length == 1 ? '' : 's'} with motion"
+      puts
+      puts "Summary:"
+      puts "  Original duration: #{Formatter.format_duration(video_duration)}"
+      puts "  Keeping:  #{Formatter.format_duration(total_kept)} (#{'%.1f' % (total_kept / video_duration * 100)}%)"
+      puts "  Removing: #{Formatter.format_duration(total_removed)} (#{'%.1f' % (total_removed / video_duration * 100)}%)"
     end
   end
 end

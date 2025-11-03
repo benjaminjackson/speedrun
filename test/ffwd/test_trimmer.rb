@@ -99,5 +99,59 @@ module Ffwd
         assert_equal [[0.0, 10.0], [30.0, 100.0]], keep_regions
       end
     end
+
+    def test_dry_run_mode_enabled
+      File.stub :exist?, true do
+        trimmer = Trimmer.new("input.mp4")
+        trimmer.dry_run = true
+        assert trimmer.dry_run?
+      end
+    end
+
+    def test_run_with_no_freezes_copies_file
+      File.stub :exist?, true do
+        FFmpeg.stub :get_duration, 100.0 do
+          FFmpeg.stub :detect_freezes, [] do
+            FileUtils.stub :cp, nil do
+              trimmer = Trimmer.new("input.mp4")
+
+              # Capture output
+              output = capture_io { trimmer.run }.join
+
+              assert_match(/No freeze regions detected/, output)
+            end
+          end
+        end
+      end
+    end
+
+    def test_run_raises_error_if_all_content_removed
+      File.stub :exist?, true do
+        FFmpeg.stub :get_duration, 100.0 do
+          FFmpeg.stub :detect_freezes, [[0.0, 100.0]] do
+            trimmer = Trimmer.new("input.mp4")
+
+            error = assert_raises(RuntimeError) { trimmer.run }
+            assert_match(/All video content would be removed/, error.message)
+          end
+        end
+      end
+    end
+
+    def test_dry_run_outputs_analysis_without_processing
+      File.stub :exist?, true do
+        FFmpeg.stub :get_duration, 100.0 do
+          FFmpeg.stub :detect_freezes, [[40.0, 60.0]] do
+            trimmer = Trimmer.new("input.mp4")
+            trimmer.dry_run = true
+
+            output = capture_io { trimmer.run }.join
+
+            assert_match(/DRY RUN/, output)
+            assert_match(/Found 1 freeze/, output)
+          end
+        end
+      end
+    end
   end
 end
