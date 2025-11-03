@@ -10,8 +10,8 @@ module Ffwd
     end
 
     desc "trim INPUT [OUTPUT]", "Trim freeze/low-motion regions from video"
-    option :noise, type: :numeric, aliases: '-n', default: -70, desc: "Noise threshold in dB"
-    option :duration, type: :numeric, aliases: '-d', default: 1.0, desc: "Minimum freeze duration in seconds"
+    option :noise, type: :numeric, aliases: '-n', default: -70, desc: "Noise tolerance in dB (less negative = more cuts)"
+    option :duration, type: :numeric, aliases: '-d', default: 1.0, desc: "Minimum freeze duration to remove in seconds"
     option :'dry-run', type: :boolean, default: false, desc: "Preview without processing"
     option :quiet, type: :boolean, aliases: '-q', default: false, desc: "Minimal output"
     def trim(input_file, output_file = nil)

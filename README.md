@@ -55,7 +55,7 @@ This creates `input-trimmed.mp4` with frozen segments removed.
 ffwd trim INPUT [OUTPUT] [options]
 
 Options:
-  -n, --noise THRESHOLD        # Noise threshold in dB (default: -70)
+  -n, --noise THRESHOLD        # Noise tolerance in dB (default: -70)
   -d, --duration SECONDS       # Minimum freeze duration in seconds (default: 1.0)
   --dry-run                    # Preview without processing
   -q, --quiet                  # Minimal output
@@ -67,6 +67,20 @@ Examples:
   ffwd trim video.mp4 --duration 2.0                     # Only remove freezes >= 2s
   ffwd trim video.mp4 --dry-run                          # Preview analysis only
 ```
+
+#### Understanding the Noise Threshold
+
+The `--noise` parameter controls how sensitive freeze detection is to small changes in the video:
+
+- **Less negative values** (like `-60 dB`) = **More sensitive**
+  Detects freezes even when there's subtle motion or slight changes
+  Use when you want to catch nearly-static sections
+
+- **More negative values** (like `-80 dB`) = **Less sensitive**
+  Only detects freezes when frames are nearly identical
+  Use when you want to preserve sections with minimal motion
+
+The default of `-70 dB` works well for most screen recordings. If you're getting false positives (motion incorrectly flagged as frozen), try `-80 dB`. If freezes are being missed, try `-60 dB`.
 
 ### Other Commands
 
