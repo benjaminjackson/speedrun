@@ -16,6 +16,11 @@ module Speedrun
       format('%02d:%02d:%06.3f', hours, minutes, secs)
     end
 
+    def self.parse_time(time_string)
+      hours, minutes, seconds = time_string.split(':').map(&:to_f)
+      (hours * SECONDS_PER_HOUR) + (minutes * SECONDS_PER_MINUTE) + seconds
+    end
+
     def self.format_duration(seconds)
       if seconds < SECONDS_PER_MINUTE
         format('%.2fs', seconds)

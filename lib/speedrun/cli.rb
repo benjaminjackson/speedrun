@@ -24,7 +24,8 @@ module Speedrun
         input_file,
         output_file,
         noise_threshold: options[:noise],
-        min_duration: options[:duration]
+        min_duration: options[:duration],
+        quiet: options[:quiet]
       )
 
       trimmer.dry_run = options[:'dry-run']

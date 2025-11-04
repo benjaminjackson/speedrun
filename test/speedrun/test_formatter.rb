@@ -39,5 +39,17 @@ module Speedrun
     def test_format_filesize_gigabytes
       assert_equal "2.5 GB", Formatter.format_filesize(2684354560)
     end
+
+    def test_parse_time_zero
+      assert_equal 0.0, Formatter.parse_time("00:00:00.000")
+    end
+
+    def test_parse_time_with_hours_minutes_seconds
+      assert_equal 3661.5, Formatter.parse_time("01:01:01.500")
+    end
+
+    def test_parse_time_simple
+      assert_equal 83.45, Formatter.parse_time("00:01:23.450")
+    end
   end
 end

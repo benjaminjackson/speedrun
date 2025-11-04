@@ -2,11 +2,14 @@
 
 require 'shellwords'
 require 'tempfile'
+require 'open3'
 
 module Speedrun
   module FFmpeg
     FREEZE_START_PATTERN = /freeze_start:\s*([\d.]+)/
     FREEZE_END_PATTERN = /freeze_end:\s*([\d.]+)/
+    DURATION_PATTERN = /Duration:\s*(\d{2}):(\d{2}):(\d{2}\.\d+)/
+    TIME_PATTERN = /time=(\d{2}):(\d{2}):(\d{2}\.\d+)/
 
     def self.parse_duration(output)
       output.strip.to_f
@@ -44,7 +47,7 @@ module Speedrun
       parse_duration(output)
     end
 
-    def self.detect_freezes(file_path, noise_threshold: -70, min_duration: 1.0)
+    def self.detect_freezes(file_path, noise_threshold: -70, min_duration: 1.0, quiet: false, &block)
       raise ArgumentError, "File not found: #{file_path}" unless File.exist?(file_path)
 
       cmd = [
@@ -53,13 +56,37 @@ module Speedrun
         '-vf', "freezedetect=n=#{noise_threshold}dB:d=#{min_duration}",
         '-f', 'null',
         '-'
-      ].shelljoin
+      ]
 
-      output = `#{cmd} 2>&1`
+      output = String.new
+      duration = nil
+
+      Open3.popen3(*cmd) do |stdin, stdout, stderr, wait_thr|
+        stdin.close
+
+        stderr.each_line do |line|
+          output << line
+
+          # Extract duration from first line that contains it
+          if duration.nil? && line =~ DURATION_PATTERN
+            duration = Formatter.parse_time("#{$1}:#{$2}:#{$3}")
+          end
+
+          # Extract current time and calculate progress
+          if duration && block_given? && line =~ TIME_PATTERN
+            current_time = Formatter.parse_time("#{$1}:#{$2}:#{$3}")
+            progress = [(current_time / duration * 100).round, 100].min
+            block.call(progress)
+          end
+        end
+
+        wait_thr.value # Wait for process to complete
+      end
+
       parse_freezes(output)
     end
 
-    def self.extract_and_concat(input_file, output_file, keep_regions)
+    def self.extract_and_concat(input_file, output_file, keep_regions, quiet: false, &block)
       raise ArgumentError, "File not found: #{input_file}" unless File.exist?(input_file)
       raise ArgumentError, "No regions to keep" if keep_regions.empty?
 
@@ -81,10 +108,33 @@ module Speedrun
           '-c', 'copy',
           '-y',
           output_file
-        ].shelljoin
+        ]
 
-        output = `#{cmd} 2>&1`
-        success = $?.success?
+        output = String.new
+        duration = nil
+        success = false
+
+        Open3.popen3(*cmd) do |stdin, stdout, stderr, wait_thr|
+          stdin.close
+
+          stderr.each_line do |line|
+            output << line
+
+            # Extract duration from first line that contains it
+            if duration.nil? && line =~ DURATION_PATTERN
+              duration = Formatter.parse_time("#{$1}:#{$2}:#{$3}")
+            end
+
+            # Extract current time and calculate progress
+            if duration && block_given? && line =~ TIME_PATTERN
+              current_time = Formatter.parse_time("#{$1}:#{$2}:#{$3}")
+              progress = [(current_time / duration * 100).round, 100].min
+              block.call(progress)
+            end
+          end
+
+          success = wait_thr.value.success?
+        end
 
         raise "FFmpeg failed: #{output}" unless success
 

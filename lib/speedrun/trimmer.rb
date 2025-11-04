@@ -7,7 +7,7 @@ module Speedrun
     attr_reader :input_file, :output_file
     attr_accessor :dry_run
 
-    def initialize(input_file, output_file = nil, noise_threshold: -70, min_duration: 1.0)
+    def initialize(input_file, output_file = nil, noise_threshold: -70, min_duration: 1.0, quiet: false)
       raise ArgumentError, "File not found: #{input_file}" unless File.exist?(input_file)
 
       @input_file = input_file
@@ -15,26 +15,36 @@ module Speedrun
       @noise_threshold = noise_threshold
       @min_duration = min_duration
       @dry_run = false
+      @quiet = quiet
     end
 
     def dry_run?
       @dry_run
     end
 
+    def quiet?
+      @quiet
+    end
+
     def run
-      puts "Input:  #{@input_file}"
-      puts "Output: #{@output_file}"
-      puts
+      output "Input:  #{@input_file}"
+      output "Output: #{@output_file}"
+      output ""
 
       # Step 1: Detect freeze regions
+      progress_bar = Progress.create(title: "Analyzing video", total: 100, quiet: @quiet)
       freeze_regions = FFmpeg.detect_freezes(
         @input_file,
         noise_threshold: @noise_threshold,
-        min_duration: @min_duration
-      )
+        min_duration: @min_duration,
+        quiet: @quiet
+      ) do |progress|
+        progress_bar&.progress = progress if progress
+      end
+      progress_bar&.finish
 
       if freeze_regions.empty?
-        puts "No freeze regions detected. Copying original video..."
+        output "No freeze regions detected. Copying original video..."
         FileUtils.cp(@input_file, @output_file) unless dry_run?
         return
       end
@@ -52,20 +62,27 @@ module Speedrun
 
       # Step 4: Process or dry-run
       if dry_run?
-        puts
-        puts "DRY RUN - No files were modified"
+        output ""
+        output "DRY RUN - No files were modified"
       else
-        puts
-        puts "Processing video..."
-        FFmpeg.extract_and_concat(@input_file, @output_file, keep_regions)
+        output ""
+        progress_bar = Progress.create(title: "Processing video", total: 100, quiet: @quiet)
+        FFmpeg.extract_and_concat(@input_file, @output_file, keep_regions, quiet: @quiet) do |progress|
+          progress_bar&.progress = progress if progress
+        end
+        progress_bar&.finish
 
         output_size = File.size(@output_file)
-        puts "Complete! Output saved to #{@output_file}"
-        puts "  File size: #{Formatter.format_filesize(output_size)}"
+        output "Complete! Output saved to #{@output_file}"
+        output "  File size: #{Formatter.format_filesize(output_size)}"
       end
     end
 
     private
+
+    def output(message)
+      puts message unless @quiet
+    end
 
     def generate_output_filename(input_file)
       ext = File.extname(input_file)
@@ -98,14 +115,14 @@ module Speedrun
       total_removed = freeze_regions.sum { |s, e| e - s }
       total_kept = keep_regions.sum { |s, e| e - s }
 
-      puts "Analysis complete:"
-      puts "  Found #{freeze_regions.length} freeze region#{freeze_regions.length == 1 ? '' : 's'}"
-      puts "  Keeping #{keep_regions.length} segment#{keep_regions.length == 1 ? '' : 's'} with motion"
-      puts
-      puts "Summary:"
-      puts "  Original duration: #{Formatter.format_duration(video_duration)}"
-      puts "  Keeping:  #{Formatter.format_duration(total_kept)} (#{'%.1f' % (total_kept / video_duration * 100)}%)"
-      puts "  Removing: #{Formatter.format_duration(total_removed)} (#{'%.1f' % (total_removed / video_duration * 100)}%)"
+      output "Analysis complete:"
+      output "  Found #{freeze_regions.length} freeze region#{freeze_regions.length == 1 ? '' : 's'}"
+      output "  Keeping #{keep_regions.length} segment#{keep_regions.length == 1 ? '' : 's'} with motion"
+      output ""
+      output "Summary:"
+      output "  Original duration: #{Formatter.format_duration(video_duration)}"
+      output "  Keeping:  #{Formatter.format_duration(total_kept)} (#{'%.1f' % (total_kept / video_duration * 100)}%)"
+      output "  Removing: #{Formatter.format_duration(total_removed)} (#{'%.1f' % (total_removed / video_duration * 100)}%)"
     end
   end
 end

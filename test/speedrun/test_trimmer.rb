@@ -159,12 +159,11 @@ module Speedrun
         File.stub :size, 1024000 do
           FFmpeg.stub :get_duration, 100.0 do
             FFmpeg.stub :detect_freezes, [[40.0, 60.0]] do
-              FFmpeg.stub :extract_and_concat, true do
+              FFmpeg.stub :extract_and_concat, ->(input, output, regions, quiet: false, &block) { true } do
                 trimmer = Trimmer.new("input.mp4", "output.mp4")
 
                 output = capture_io { trimmer.run }.join
 
-                assert_match(/Processing video/, output)
                 assert_match(/Complete!/, output)
                 assert_match(/output.mp4/, output)
                 assert_match(/File size:/, output)
@@ -187,7 +186,7 @@ module Speedrun
               extract_output = nil
               extract_regions = nil
 
-              FFmpeg.stub :extract_and_concat, ->(input, output, regions) {
+              FFmpeg.stub :extract_and_concat, ->(input, output, regions, quiet: false, &block) {
                 extract_called = true
                 extract_input = input
                 extract_output = output
@@ -205,6 +204,16 @@ module Speedrun
             end
           end
         end
+      end
+    end
+
+    def test_accepts_quiet_option
+      File.stub :exist?, true do
+        trimmer = Trimmer.new("input.mp4", quiet: true)
+        assert_instance_of Trimmer, trimmer
+        # Verify the quiet flag is stored (we'll check its behavior in later tests)
+        assert_respond_to trimmer, :quiet?
+        assert trimmer.quiet?
       end
     end
   end
