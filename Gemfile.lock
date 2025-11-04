@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    speedrun (0.1.0)
+    speedrun (0.2.0)
       pastel (~> 0.8)
       ruby-progressbar (~> 1.13)
       thor (~> 1.3)

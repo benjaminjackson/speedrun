@@ -12,8 +12,8 @@ module Speedrun
       assert_match(/\A\d+\.\d+\.\d+\z/, Speedrun::VERSION)
     end
 
-    def test_version_is_0_1_0
-      assert_equal "0.1.0", Speedrun::VERSION
+    def test_version_is_0_2_0
+      assert_equal "0.2.0", Speedrun::VERSION
     end
   end
 end
